@@ -26,9 +26,17 @@ class InstascraperFrame(wx.Frame):
 
     Sets up the window and reacts to GUI events such as button clicks.
     """
-    intro = "You can use the DMI Instagram Scraper to capture data from Instagram for given hashtags or account names." \
+    intro_mac = "You can use the DMI Instagram Scraper to capture data from Instagram\n" \
+                "for given hashtags or account names.\n\n" \
+                "Below, configure what you want to scrape, then click 'Start scraping'. A \n" \
+                "CSV file containing all scraped data will be created in the given folder."
+    intro_win = "You can use the DMI Instagram Scraper to capture data from Instagram for given hashtags or account names." \
             "\n\nBelow, configure what you want to scrape, and what data should be saved for each item, then click " \
             "'Start scraping'. A CSV file containing all scraped data will be created in the folder you specify."
+
+    wikilink_win = "For more information, refer to the Tool Wiki at https://tools.digitalmethods.net."
+    wikilink_mac = "For more information, refer to https://tools.digitalmethods.net."
+
 
     scraping = False
     scraper = None
@@ -87,11 +95,11 @@ class InstascraperFrame(wx.Frame):
         # Intro text
         # The last row is added separately to make it 'clickable' (wxPython
         # doesn't have in-text hyperlinks)
+        intro = self.intro_mac if sys.platform == "darwin" else self.intro_win
+        wikilink = self.wikilink_mac if sys.platform == "darwin" else self.wikilink_win
         intro_wrap = wx.BoxSizer(wx.VERTICAL)
-        intro_wrap.Add(wx.StaticText(self.main_panel, wx.ID_ANY, self.intro, size=(WIDTH_TEXT, 108)))
-        intro_link = wx.StaticText(self.main_panel, wx.ID_ANY,
-                                   "For more information, refer to the the Tool Wiki at https://tools.digitalmethods.net.",
-                                   size=(WIDTH_TEXT, -1))
+        intro_wrap.Add(wx.StaticText(self.main_panel, wx.ID_ANY, intro, size=(WIDTH_TEXT, 108)))
+        intro_link = wx.StaticText(self.main_panel, wx.ID_ANY, wikilink, size=(WIDTH_TEXT, -1))
         intro_link.Bind(wx.EVT_LEFT_DOWN, self.openWiki)
         intro_link.SetCursor(wx.Cursor(wx.CURSOR_HAND))
         intro_wrap.Add(intro_link)
@@ -131,7 +139,7 @@ class InstascraperFrame(wx.Frame):
         comments_wrap.Add(self.comments_checkbox)
         comments_wrap.Add(wx.StaticText(self.main_panel, wx.ID_ANY, "Comments"))
         comments_wrap.Add(self.photos_checkbox, flag=wx.LEFT, border=10)
-        comments_wrap.Add(wx.StaticText(self.main_panel, wx.ID_ANY, "Download photo/video/metadata files"))
+        comments_wrap.Add(wx.StaticText(self.main_panel, wx.ID_ANY, "Download photo/metadata files"))
 
         # File name
         # the results are saved as a CSV file here
@@ -385,6 +393,8 @@ class InstagramScraperApp(wx.App):
         """
         Initialise app window
         """
+        with open("/Users/stijn/py.log", "w") as out:
+            out.write("DEBUG")
         self.frame = InstascraperFrame()
         self.SetTopWindow(self.frame)
         self.frame.Show()

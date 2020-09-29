@@ -14,11 +14,13 @@ else:
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
-with open("VERSION", "r") as fh:
+with open("dmi_instascraper/VERSION", "r") as fh:
     version = fh.read()
 
 with open("requirements.txt", "r") as fh:
     requirements = [line.strip() for line in fh.readlines()]
+
+app_name = "dmi-instascraper"
 
 # again, some extra cx_freeze stuff
 extra_setup = {}
@@ -29,13 +31,18 @@ if freezing:
     # console application).
     if sys.platform == "win32":
         base = "Win32GUI"
+        exe_name = "dmi-instascraper.exe"
+    else:
+        exe_name = "DMInstascraper"
+        app_name = exe_name
 
     # these excludes don't seem to do much unfortunately...
-    assets = ["VERSION"]
+    assets = ["dmi_instascraper/VERSION"]
     build_exe_options = {
         "optimize": 2,
-        "packages": [req.split("==")[0] for req in requirements],
-        "excludes": ["wx.lib", "tkinter", "jinja2"],
+        "packages": ["wx", "instaloader", "requests"],
+        "includes": ["queue"],
+        "excludes": ["matplotlib.tests", "numpy.random._examples", "wx.lib", "jinja2"],
         "include_files": [(asset, "lib/dmi_instascraper/" + asset) for asset in assets]
     }
 
@@ -45,13 +52,24 @@ if freezing:
         "executables": [Executable(
             "dmi_instascraper/__main__.py",
             base=base,
-            targetName="dmi-instascraper.exe",
+            targetName=exe_name,
             icon="icon.ico"
         )]
     }
 
+    if sys.platform == "darwin":
+        extra_setup["options"]["bdist_mac"] = {
+            "iconfile": "icon.icns",
+            "bundle_name": "DMI Instagram Scraper",
+        }
+
+        extra_setup["options"]["bdist_dmg"]: {
+            "volume_label": "DMI Instagram Scraper",
+            "applications_shortcut": True
+        }
+
 setup(
-    name="dmi-instascraper",
+    name=app_name,
     version=version,
     author="Digital Methods Initiative",
     author_email="stijn.peeters@uva.nl",
