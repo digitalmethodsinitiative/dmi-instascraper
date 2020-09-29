@@ -3,7 +3,7 @@ import setuptools
 
 # cx_freeze interferes with 'normal' setup, so only load it when the relevant
 # cx_freeze functions are run
-if sys.argv[1] in ("build_msi", "build_dmg", "build_app"):
+if sys.argv[1] in ("bdist_msi", "bdist_mac", "bdist_dmg"):
     freezing = True
     from cx_Freeze import setup, Executable
 else:
@@ -35,10 +35,7 @@ if freezing:
     build_exe_options = {
         "optimize": 2,
         "packages": [req.split("==")[0] for req in requirements],
-        "excludes": ["wx.lib",
-                     "tkinter", "jinja2", "lib2to3", "numpy ", "pandas", "pip",
-                     "matplotlib", "scipy", "unittest", "sqlite3", "distutils",
-                     ],
+        "excludes": ["wx.lib", "tkinter", "jinja2"],
         "include_files": [(asset, "lib/dmi_instascraper/" + asset) for asset in assets]
     }
 
