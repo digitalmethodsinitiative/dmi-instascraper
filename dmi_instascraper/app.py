@@ -17,8 +17,7 @@ csv.register_dialect("excel-compat", delimiter=",", doublequote=False, escapecha
 # one-file executable
 def resource(relative_path):
     """ Get absolute path to resource, works for dev and for PyInstaller """
-    base_path = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
-    return os.path.join(base_path, relative_path)
+    return str(Path(os.path.dirname(os.path.abspath(__file__)), relative_path))
 
 
 class InstascraperFrame(wx.Frame):
@@ -58,7 +57,7 @@ class InstascraperFrame(wx.Frame):
         # load version so we can show it in the UI
         # important so it can be asked for when debugging
         # todo: check for new version and show dialog if available?
-        with open("VERSION") as version_file:
+        with open(resource("VERSION")) as version_file:
             version = version_file.read().strip()
 
         # set up main frame and panel
@@ -145,7 +144,7 @@ class InstascraperFrame(wx.Frame):
 
         # Target folder
         # the folder where the results file is saved
-        self.folder_input = wx.DirPickerCtrl(self.main_panel, wx.ID_ANY, os.getcwd(), size=(WIDTH_CONTROL, -1))
+        self.folder_input = wx.DirPickerCtrl(self.main_panel, wx.ID_ANY, os.path.expanduser("~/Documents"), size=(WIDTH_CONTROL, -1))
         folder_wrap = wx.BoxSizer(wx.HORIZONTAL)
         folder_wrap.Add(wx.StaticText(self.main_panel, wx.ID_ANY, "Folder to scrape to", size=(WIDTH_LABEL, -1),
                                       style=wx.ALIGN_RIGHT), flag=wx.RIGHT, border=MARGIN)
@@ -244,7 +243,7 @@ class InstascraperFrame(wx.Frame):
         """
         togglable_controls = (
             self.amount_input, self.query_input, self.file_input, self.folder_input, self.comments_checkbox,
-            self.json_checkbox, self.photos_checkbox)
+            self.photos_checkbox)
 
         if not self.scraping:
             # no scrape running - disable all controls, make progress bar pulse
@@ -320,13 +319,17 @@ class InstascraperFrame(wx.Frame):
             fieldnames = list(data[0].keys())
 
             self.logMessage("Writing results to file...")
-            with path.open("w", encoding="utf-8") as output:
-                writer = csv.DictWriter(output, fieldnames=fieldnames, dialect="excel-compat")
-                writer.writeheader()
-                for post in data:
-                    writer.writerow(post)
+            try:
+                with path.open("w", encoding="utf-8") as output:
+                    writer = csv.DictWriter(output, fieldnames=fieldnames, dialect="excel-compat")
+                    writer.writeheader()
+                    for post in data:
+                        writer.writerow(post)
 
-            self.logMessage("Done! Results written to %s" % self.file_input.GetValue())
+                self.logMessage("Done! Results written to %s" % self.file_input.GetValue())
+            except (FileNotFoundError, FileExistsError, PermissionError):
+                self.logMessage("Could not create file. Try writing to another directory.")
+
             self.scrapeControl(None)
 
         elif data["type"] == "status" and data["value"] == "INTERRUPTED":
@@ -354,6 +357,14 @@ class InstascraperFrame(wx.Frame):
         scrape_comments = self.comments_checkbox.GetValue()
         scrape_files = self.photos_checkbox.GetValue()
         scrape_target = Path(self.folder_input.GetPath())
+
+        if not os.access(str(scrape_target), os.W_OK):
+            self.logMessage("The folder you chose is not writeable. Choose"
+                            "another folder to which the result file can be"
+                            "saved and try again.")
+            self.scrapeControl(None)
+            return
+
         try:
             max_posts = int(self.amount_input.GetValue())
         except ValueError:

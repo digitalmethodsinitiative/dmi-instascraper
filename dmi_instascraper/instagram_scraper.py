@@ -215,6 +215,9 @@ class InstagramScraper(threading.Thread):
             if self.scrape_files:
                 instagram.download_post(post, self.scrape_target.joinpath(post.query).joinpath(post.shortcode))
 
+            if not self.scrape_comments:
+                continue
+
             try:
                 for comment in post.get_comments():
                     answers = [answer for answer in comment.answers]
