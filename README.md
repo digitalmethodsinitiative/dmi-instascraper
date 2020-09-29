@@ -43,4 +43,4 @@ page.
 ## License
 This software was developed by the 
 [Digital Methods Initiative](https://digitalmethods.net), and is distributed
-under the Apach 2.0 license. See LICENSE for details.
+under the Mozilla Public License 2.0 license. See LICENSE for details.
