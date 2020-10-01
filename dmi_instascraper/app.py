@@ -393,8 +393,6 @@ class InstagramScraperApp(wx.App):
         """
         Initialise app window
         """
-        with open("/Users/stijn/py.log", "w") as out:
-            out.write("DEBUG")
         self.frame = InstascraperFrame()
         self.SetTopWindow(self.frame)
         self.frame.Show()
