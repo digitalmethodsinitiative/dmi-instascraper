@@ -1,0 +1,4 @@
+include LICENSE
+
+include dmi_instascraper/*.png
+include dmi_instascraper/VERSION

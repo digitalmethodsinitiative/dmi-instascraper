@@ -69,6 +69,7 @@ class InstascraperFrame(wx.Frame):
             version = version_file.read().strip()
 
         # set up main frame and panel
+        self.locale = wx.Locale(wx.LANGUAGE_ENGLISH)
         wx.Frame.__init__(self, None, title="DMI Instagram Scraper v%s" % version,
                           style=wx.CAPTION | wx.MINIMIZE_BOX | wx.CLOSE_BOX)
         self.SetSize(SIZE)
