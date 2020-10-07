@@ -1,7 +1,10 @@
+import packaging.version
 import webbrowser
+import requests
 import sys
 import csv
 import wx
+import re
 import os
 
 from dmi_instascraper.instagram_scraper import InstagramScraper
@@ -9,7 +12,7 @@ from pathlib import Path
 
 # this seems to be compatible... mostly
 # at least it also imports properly into Google Sheets
-csv.register_dialect("excel-compat", delimiter=",", doublequote=False, escapechar="\\", lineterminator="\n",
+csv.register_dialect("excel-compat", delimiter=",", doublequote=True, escapechar="\\", lineterminator="\n",
                      quotechar='"', quoting=csv.QUOTE_ALL, skipinitialspace=False, strict=False)
 
 
@@ -77,6 +80,9 @@ class InstascraperFrame(wx.Frame):
         self.main_panel.SetMinSize((-1, -1))
         main_sizer = wx.BoxSizer(wx.VERTICAL)
 
+        # update check
+        self.checkForUpdates(version)
+
         # listen for events
         self.scrape_event_id = wx.NewIdRef()
         self.Connect(-1, -1, self.scrape_event_id, self.handleScraperEvent)
@@ -133,6 +139,7 @@ class InstascraperFrame(wx.Frame):
         # if set, comments are also scraped, but this takes much longer
         self.comments_checkbox = wx.CheckBox(self.main_panel)
         self.photos_checkbox = wx.CheckBox(self.main_panel)
+        self.metadata_checkbox = wx.CheckBox(self.main_panel)
         comments_wrap = wx.BoxSizer(wx.HORIZONTAL)
         comments_wrap.Add(
             wx.StaticText(self.main_panel, wx.ID_ANY, "Also scrape", size=(WIDTH_LABEL, -1), style=wx.ALIGN_RIGHT),
@@ -140,7 +147,9 @@ class InstascraperFrame(wx.Frame):
         comments_wrap.Add(self.comments_checkbox)
         comments_wrap.Add(wx.StaticText(self.main_panel, wx.ID_ANY, "Comments"))
         comments_wrap.Add(self.photos_checkbox, flag=wx.LEFT, border=10)
-        comments_wrap.Add(wx.StaticText(self.main_panel, wx.ID_ANY, "Download photo/metadata files"))
+        comments_wrap.Add(wx.StaticText(self.main_panel, wx.ID_ANY, "Photo files"))
+        comments_wrap.Add(self.metadata_checkbox, flag=wx.LEFT, border=10)
+        comments_wrap.Add(wx.StaticText(self.main_panel, wx.ID_ANY, "Metadata files"))
 
         # File name
         # the results are saved as a CSV file here
@@ -153,7 +162,7 @@ class InstascraperFrame(wx.Frame):
 
         # Target folder
         # the folder where the results file is saved
-        self.folder_input = wx.DirPickerCtrl(self.main_panel, wx.ID_ANY, os.path.expanduser("~/Documents"), size=(WIDTH_CONTROL, -1))
+        self.folder_input = wx.DirPickerCtrl(self.main_panel, wx.ID_ANY, os.path.expanduser("~" + os.sep + "Documents"), size=(WIDTH_CONTROL, -1))
         folder_wrap = wx.BoxSizer(wx.HORIZONTAL)
         folder_wrap.Add(wx.StaticText(self.main_panel, wx.ID_ANY, "Folder to scrape to", size=(WIDTH_LABEL, -1),
                                       style=wx.ALIGN_RIGHT), flag=wx.RIGHT, border=MARGIN)
@@ -239,6 +248,48 @@ class InstascraperFrame(wx.Frame):
         :param event:  Event that triggered this method
         """
         webbrowser.open("https://tools.digitalmethods.net")
+
+    def checkForUpdates(self, current_version):
+        """
+        Check for updates and display a warning if a new version is available
+
+        :param current_version:  Current version to compare to
+        """
+        try:
+            # low timeout because this is blocking
+            # we could make it run in a separate thread...
+            github_release = requests.get("https://api.github.com/repos/digitalmethodsinitiative/dmi-instascraper/releases/latest", timeout=2)
+            github_release = github_release.json()
+
+            if "message" in github_release and github_release["message"] == "Not Found":
+                return
+
+            if "tag_name" not in github_release:
+                return
+
+            compare_version = packaging.version.parse(github_release["tag_name"])
+            current_version = packaging.version.parse(current_version)
+
+            if current_version < compare_version:
+                # A NEW VERSION APPEARS
+                update_warning = wx.MessageDialog(self, "A new version of the DMI Instagram Scraper is available!\n\n"
+                                                        "You have: %s\nThe latest version is: %s\n\n"
+                                                        "Do you want to open the download page for the new version?" % (
+                                                  current_version, compare_version), "New version available",
+                                                  wx.YES_NO | wx.CANCEL | wx.ICON_INFORMATION)
+                choice = update_warning.ShowModal()
+                update_warning.Destroy()
+
+                # open github release page for newest version, which should
+                # contain download URLs
+                # if the tool gets a dedicated website that could be opened
+                # instead...
+                if choice == wx.ID_YES and "html_url" in github_release:
+                    webbrowser.open(github_release["html_url"])
+
+        except BaseException:
+            # better luck next time
+            pass
 
     def scrapeControl(self, event):
         """
@@ -365,7 +416,9 @@ class InstascraperFrame(wx.Frame):
         queries = self.query_input.GetValue().replace(",", "\n").split("\n")
         scrape_comments = self.comments_checkbox.GetValue()
         scrape_files = self.photos_checkbox.GetValue()
+        scrape_metadata = self.metadata_checkbox.GetValue()
         scrape_target = Path(self.folder_input.GetPath())
+        scrape_filename = self.file_input.GetValue()
 
         if not os.access(str(scrape_target), os.W_OK):
             self.logMessage("The folder you chose is not writeable. Choose"
@@ -381,7 +434,7 @@ class InstascraperFrame(wx.Frame):
             max_posts = 50
 
         self.scraper = InstagramScraper(self.scrape_event_id, self, queries, max_posts, scrape_comments, scrape_files,
-                                        scrape_target)
+                                        scrape_metadata, scrape_target, scrape_filename)
         self.scraper.start()
 
 

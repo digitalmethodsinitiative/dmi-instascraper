@@ -1,5 +1,6 @@
 import instaloader
 import threading
+import datetime
 import re
 import wx
 
@@ -32,7 +33,7 @@ class InstagramScraper(threading.Thread):
     interrupted = False
     results = None
 
-    def __init__(self, event_id, parent, queries, max_posts, scrape_comments, scrape_files, scrape_target):
+    def __init__(self, event_id, parent, queries, max_posts, scrape_comments, scrape_files, scrape_metadata, scrape_target, scrape_filename):
         """
         Instantiate scraper
 
@@ -45,8 +46,11 @@ class InstagramScraper(threading.Thread):
         :param list queries:  List of queries, #hashtags or @users
         :param int max_posts:  Posts to scrape per query
         :param bool scrape_comments:  Also scrape comments and save in CSV?
-        :param bool scrape_files:  Also save metadata & files for each post?
+        :param bool scrape_files:  Also save photo files for each post?
+        :param bool scrape_metadata:  Also save metadata files for each post?
         :param Path scrape_target:  Where to save scraped files
+        :param str scrape_filename:  File name for scrape results, not used
+        directly but used to derive container folder name
         """
         super().__init__()
         self.event_id = event_id
@@ -55,7 +59,9 @@ class InstagramScraper(threading.Thread):
         self.max_posts = max_posts
         self.scrape_comments = scrape_comments
         self.scrape_files = scrape_files
+        self.scrape_metadata = scrape_metadata
         self.scrape_target = scrape_target
+        self.scrape_filename = scrape_filename
 
     def update_status(self, message):
         """
@@ -179,6 +185,13 @@ class InstagramScraper(threading.Thread):
         results = []
         posts_processed = 0
         comments_bit = " and comments" if self.scrape_comments else ""
+        extra_columns = {}
+
+        if self.scrape_files:
+            extra_columns["photo_file"] = ""
+
+        if self.scrape_metadata:
+            extra_columns["metadata_file"] = ""
 
         for post in posts:
             if self.interrupted:
@@ -192,7 +205,7 @@ class InstagramScraper(threading.Thread):
             thread_id = post.shortcode
 
             try:
-                results.append({
+                post_data = {
                     "id": thread_id,
                     "thread_id": thread_id,
                     "parent_id": thread_id,
@@ -207,14 +220,28 @@ class InstagramScraper(threading.Thread):
                     "mentioned": ",".join(mention.findall(post.caption) if post.caption else ""),
                     "num_likes": post.likes,
                     "num_comments": post.comments,
-                    "subject": ""
-                })
+                    "subject": "",
+                    **extra_columns
+                }
             except (KeyError, instaloader.QueryReturnedNotFoundException, instaloader.ConnectionException):
-                pass
+                continue
+
+            if self.scrape_files or self.scrape_metadata:
+                files_folder = self.scrape_target.joinpath(".".join(self.scrape_filename.split(".")[:-1]))
+                if not files_folder.exists() or not files_folder.is_dir():
+                    files_folder.mkdir()
 
             if self.scrape_files:
-                instagram.download_post(post, self.scrape_target.joinpath(post.query).joinpath(post.shortcode))
+                instagram.download_pic(str(files_folder.joinpath(thread_id)), post.url, datetime.datetime.now())
+                ext = ".jpg" if not post.is_video else ".mp4"
+                post_data["photo_file"] = str(files_folder.joinpath(thread_id + ext))
+                #instagram.download_post(post, self.scrape_target.joinpath(post.query).joinpath(post.shortcode))
 
+            if self.scrape_metadata:
+                instagram.save_metadata_json(str(files_folder.joinpath(thread_id)), post)
+                post_data["metadata_file"] = str(files_folder.joinpath(thread_id + ".json"))
+
+            results.append(post_data)
             if not self.scrape_comments:
                 continue
 
@@ -237,7 +264,8 @@ class InstagramScraper(threading.Thread):
                             "mentioned": ",".join(mention.findall(comment.text)),
                             "num_likes": comment.likes_count if hasattr(comment, "likes_count") else 0,
                             "num_comments": len(answers),
-                            "subject": ""
+                            "subject": "",
+                            **extra_columns
                         })
                     except (KeyError, instaloader.QueryReturnedNotFoundException, instaloader.ConnectionException):
                         pass
@@ -260,7 +288,8 @@ class InstagramScraper(threading.Thread):
                                 "mentioned": ",".join(mention.findall(answer.text)),
                                 "num_likes": answer.likes_count if hasattr(answer, "likes_count") else 0,
                                 "num_comments": 0,
-                                "subject": ""
+                                "subject": "",
+                                **extra_columns
                             })
                         except (KeyError, instaloader.QueryReturnedNotFoundException, instaloader.ConnectionException):
                             pass
