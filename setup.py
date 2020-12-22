@@ -1,9 +1,10 @@
 import sys
+import requests
 import setuptools
 
 # cx_freeze interferes with 'normal' setup, so only load it when the relevant
 # cx_freeze functions are run
-if sys.argv[1] in ("bdist_msi", "bdist_mac", "bdist_dmg"):
+if sys.argv[1] in ("bdist_msi", "bdist_mac", "bdist_dmg", "build_exe"):
     freezing = True
     from cx_Freeze import setup, Executable
 else:
@@ -40,10 +41,11 @@ if freezing:
     assets = ["dmi_instascraper/VERSION"]
     build_exe_options = {
         "optimize": 2,
+        "include_msvcr": True,
         "packages": ["wx", "instaloader", "requests"],
-        "includes": ["queue"],
+        "includes": ["queue", "certifi"],
         "excludes": ["matplotlib.tests", "numpy.random._examples", "wx.lib", "jinja2"],
-        "include_files": [(asset, "lib/dmi_instascraper/" + asset) for asset in assets]
+        "include_files": [(requests.certs.where(), 'lib/certifi/cacert.pem'), *[(asset, "lib/dmi_instascraper/" + asset) for asset in assets]]
     }
 
     # fancy icon and nice exe name
