@@ -171,7 +171,7 @@ class InstagramScraper(threading.Thread):
                     if posts_processed >= self.max_posts:
                         break
                     try:
-                        posts.append(chunk.__next__())
+                        posts.append(post)
                         posts[-1].query = query
                         posts_processed += 1
                     except StopIteration:
