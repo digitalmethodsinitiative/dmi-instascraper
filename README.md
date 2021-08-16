@@ -1,3 +1,7 @@
+*Warning*: Instagram has made scraping really difficuly/nearly impossible. This
+tool may not work as intended. We would like to fix it but as Instagram is 
+actively trying to prevent scraping this may not be possible. Apologies!
+
 # DMI Instagram Scraper
 This package provides a simple GUI on top of 
 [instaloader](https://instaloader.github.io). Instaloader is a great Instagram 
